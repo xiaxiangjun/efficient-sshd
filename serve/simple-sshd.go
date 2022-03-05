@@ -88,6 +88,8 @@ func (self *SimpleSshd) serveChannel(channel ssh.NewChannel) {
 	switch channel.ChannelType() {
 	case "session":
 		self.serveSession(ch, req)
+	default:
+		fmt.Printf("unknown channel type: %s\n", channel.ChannelType())
 	}
 }
 
@@ -182,6 +184,8 @@ func (self *SimpleSshd) requestWindowChange(req *ssh.Request) {
 	}
 
 	pty.SetSize(int(width), int(height))
+	log.Printf("window-change: width=%d, height=%d\n", width, height)
+
 }
 
 // 重定向home目录
@@ -251,7 +255,7 @@ func (self *SimpleSshd) requestEnv(req *ssh.Request) {
 			key = ""
 
 			self.env = append(self.env, env)
-			fmt.Println("env: ", env)
+			log.Println("env: ", env)
 		}
 	}
 }
