@@ -15,6 +15,7 @@ type SimpleSshd struct {
 	config    *Config
 	ptyWidth  int
 	ptyHeight int
+	console   console.Console
 	env       []string
 }
 
@@ -105,6 +106,8 @@ func (self *SimpleSshd) serveSession(ch ssh.Channel, request <-chan *ssh.Request
 			self.requestEnv(req)
 		case "shell":
 			go self.startShell(ch)
+		case "window-change":
+			self.requestWindowChange(req)
 		default:
 			fmt.Println("request info: ", req.Type)
 			fmt.Println("want reply: ", req.WantReply)
@@ -114,6 +117,7 @@ func (self *SimpleSshd) serveSession(ch ssh.Channel, request <-chan *ssh.Request
 
 }
 
+// 启动shell
 func (self *SimpleSshd) startShell(ch ssh.Channel) {
 	defer ch.Close()
 
@@ -140,9 +144,42 @@ func (self *SimpleSshd) startShell(ch ssh.Channel) {
 	}
 
 	log.Println("start pty success")
+
+	self.console = pty
 	// 交换数据
-	go io.Copy(pty, ch)
+	go func() {
+		defer pty.Close()
+		io.Copy(pty, ch)
+		self.console = nil
+	}()
+
 	io.Copy(ch, pty)
+}
+
+// 配置窗口改变
+func (self *SimpleSshd) requestWindowChange(req *ssh.Request) {
+	//      byte      SSH_MSG_CHANNEL_REQUEST
+	//      uint32    recipient channel
+	//      string    "window-change"
+	//      boolean   FALSE
+	//      uint32    terminal width, columns
+	//      uint32    terminal height, rows
+	//      uint32    terminal width, pixels
+	//      uint32    terminal height, pixels
+	pty := self.console
+	if nil == pty {
+		return
+	}
+
+	pl := sshex.NewPayload(req.Payload)
+	width, e1 := pl.ReadUint32()
+	height, e2 := pl.ReadUint32()
+	if nil != e1 || nil != e2 {
+		log.Println("'window-change' error: ", e1, e2)
+		return
+	}
+
+	pty.SetSize(int(width), int(height))
 }
 
 // 重定向home目录
@@ -173,8 +210,6 @@ func (self *SimpleSshd) serveRequest(request <-chan *ssh.Request) {
 		}
 
 		switch req.Type {
-		case "pty-req":
-			self.requestPtyReq(req)
 		default:
 			fmt.Println("request info: ", req.Type)
 			fmt.Println("want reply: ", req.WantReply)
@@ -192,6 +227,7 @@ func (self *SimpleSshd) requestPtyReq(req *ssh.Request) {
 
 	self.ptyWidth = int(pty.CharWidth)
 	self.ptyHeight = int(pty.CharHeight)
+	log.Printf("pty-req: width=%d, height=%d\n", self.ptyWidth, self.ptyHeight)
 
 	req.Reply(true, nil)
 }
