@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 )
 
 type SimpleSshd struct {
@@ -110,6 +111,8 @@ func (self *SimpleSshd) serveSession(ch ssh.Channel, request <-chan *ssh.Request
 			go self.startShell(ch, req)
 		case "window-change":
 			self.requestWindowChange(req)
+		case "exec":
+			self.requestExec(ch, req)
 		default:
 			fmt.Println("request info: ", req.Type)
 			fmt.Println("want reply: ", req.WantReply)
@@ -132,11 +135,7 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 
 	// 启动命令
 	// 设置环境变量
-	env := os.Environ()
-	env = append(env, self.getEnvHome())
-	env = append(env, self.getEnvPs1())
-	env = append(env, self.env...)
-	pty.SetENV(env)
+	pty.SetENV(self.getEnv())
 
 	// 启动终端
 	err = pty.Start([]string{"/bin/bash"})
@@ -186,6 +185,67 @@ func (self *SimpleSshd) requestWindowChange(req *ssh.Request) {
 	pty.SetSize(int(width), int(height))
 	log.Printf("window-change: width=%d, height=%d\n", width, height)
 
+}
+
+// 执行命令
+func (self *SimpleSshd) requestExec(ch ssh.Channel, req *ssh.Request) {
+	// 退出时关闭
+	defer ch.Close()
+
+	//      byte      SSH_MSG_CHANNEL_REQUEST
+	//      uint32    recipient channel
+	//      string    "exec"
+	//      boolean   want reply
+	//      string    command
+	pl := sshex.NewPayload(req.Payload)
+	cmdLine, err := pl.ReadString()
+	if nil != err {
+		log.Println("'exec' error: ", err)
+		return
+	}
+
+	req.Reply(true, nil)
+	// 构建启动命令
+	cmd := exec.Command("/bin/bash", "-c", cmdLine)
+	cmd.Env = self.getEnv()
+	stdin, _ := cmd.StdinPipe()
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	err = cmd.Start()
+	if nil != err {
+		log.Println("run '", cmdLine, "' error: ", err)
+		return
+	}
+
+	go cmd.Wait()
+
+	log.Println("exec: ", cmdLine)
+	// 交换输入
+	go func() {
+		defer stdin.Close()
+
+		io.Copy(stdin, ch)
+	}()
+
+	// 交换输出
+	go func() {
+		defer ch.Close()
+		defer stdout.Close()
+
+		io.Copy(ch, stdout)
+	}()
+
+	defer stderr.Close()
+	io.Copy(ch, stderr)
+}
+
+func (self *SimpleSshd) getEnv() []string {
+	env := os.Environ()
+	env = append(env, self.getEnvHome())
+	env = append(env, self.getEnvPs1())
+	env = append(env, self.env...)
+	return env
 }
 
 // 重定向home目录
