@@ -105,7 +105,7 @@ func (self *SimpleSshd) serveSession(ch ssh.Channel, request <-chan *ssh.Request
 		case "env":
 			self.requestEnv(req)
 		case "shell":
-			go self.startShell(ch)
+			go self.startShell(ch, req)
 		case "window-change":
 			self.requestWindowChange(req)
 		default:
@@ -118,7 +118,7 @@ func (self *SimpleSshd) serveSession(ch ssh.Channel, request <-chan *ssh.Request
 }
 
 // 启动shell
-func (self *SimpleSshd) startShell(ch ssh.Channel) {
+func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 	defer ch.Close()
 
 	// 创建一个新的console
@@ -144,6 +144,8 @@ func (self *SimpleSshd) startShell(ch ssh.Channel) {
 	}
 
 	log.Println("start pty success")
+	// 回复客户端
+	req.Reply(true, nil)
 
 	self.console = pty
 	// 交换数据
