@@ -147,9 +147,9 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 
 	// 启动终端
 	if runtime.GOOS == "windows" {
-		err = pty.Start([]string{"C:\\msys64\\usr\\bin\\bash.exe"})
+		err = pty.Start([]string{"C:\\msys64\\usr\\bin\\bash.exe", "--login"})
 	} else {
-		err = pty.Start([]string{"/bin/bash"})
+		err = pty.Start([]string{"/bin/bash", "--login"})
 	}
 
 	if nil != err {
