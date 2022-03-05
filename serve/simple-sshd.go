@@ -21,10 +21,11 @@ type SimpleSshd struct {
 	env       []string
 }
 
-func NewSimpleSshd() *SimpleSshd {
+func NewSimpleSshd(config *Config) *SimpleSshd {
 	return &SimpleSshd{
 		ptyWidth:  80,
 		ptyHeight: 24,
+		config:    config,
 	}
 }
 
@@ -134,7 +135,13 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 		return
 	}
 
-	// 启动命令
+	// 设置工作目录
+	pwd, _ := os.Getwd()
+	if "" != self.config.Home {
+		pwd = self.config.Home
+	}
+
+	pty.SetCWD(pwd)
 	// 设置环境变量
 	pty.SetENV(self.getEnv())
 
@@ -263,6 +270,11 @@ func (self *SimpleSshd) getEnv() []string {
 // 重定向home目录
 func (self *SimpleSshd) getEnvHome() string {
 	dir, _ := os.Getwd()
+	// 使用指定的主目录
+	if "" != self.config.Home {
+		dir = self.config.Home
+	}
+
 	return fmt.Sprintf("HOME=%s", dir)
 }
 

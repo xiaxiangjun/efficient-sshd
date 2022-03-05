@@ -24,6 +24,6 @@ func ServerMain(config *Config) {
 			log.Panic(err)
 		}
 
-		go NewSimpleSshd().Serve(conn)
+		go NewSimpleSshd(config).Serve(conn)
 	}
 }
