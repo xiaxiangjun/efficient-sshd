@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 type SimpleSshd struct {
@@ -138,7 +139,12 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 	pty.SetENV(self.getEnv())
 
 	// 启动终端
-	err = pty.Start([]string{"/bin/bash"})
+	if runtime.GOOS == "windows" {
+		err = pty.Start([]string{"C:\\msys64\\usr\\bin\\bash.exe"})
+	} else {
+		err = pty.Start([]string{"/bin/bash"})
+	}
+
 	if nil != err {
 		log.Println("start pty error: ", err)
 		return
@@ -206,7 +212,13 @@ func (self *SimpleSshd) requestExec(ch ssh.Channel, req *ssh.Request) {
 
 	req.Reply(true, nil)
 	// 构建启动命令
-	cmd := exec.Command("/bin/bash", "-c", cmdLine)
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("C:\\msys64\\usr\\bin\\bash.exe", "-c", cmdLine)
+	} else {
+		cmd = exec.Command("/bin/bash", "-c", cmdLine)
+	}
+
 	cmd.Env = self.getEnv()
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
