@@ -23,7 +23,7 @@ type Config struct {
 
 // 生成随机密码
 func RandomPassword() string {
-	pwd := make([]byte, 6)
+	pwd := make([]byte, 12)
 
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(pwd)
