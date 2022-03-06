@@ -33,6 +33,7 @@ func main() {
 		config.Passwd = serve.RandomPassword()
 	}
 
+	config.LoadPublicKey()
 	// 打印信息
 	config.Dump()
 

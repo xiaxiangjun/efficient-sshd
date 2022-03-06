@@ -33,20 +33,16 @@ func NewSimpleSshd(config *Config) *SimpleSshd {
 
 func (self *SimpleSshd) Serve(conn net.Conn) {
 	defer conn.Close()
+
 	// 打印日志
 	log.Printf("%s connected\n", conn.RemoteAddr())
 	defer log.Printf("%s disconnect\n", conn.RemoteAddr())
 
 	// 创建配置文件
 	serverConfig := &ssh.ServerConfig{
-		NoClientAuth: false, // 不需要用户认证
-		PasswordCallback: func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-			if 0 == bytes.Compare(password, []byte(self.config.Passwd)) {
-				return &ssh.Permissions{}, nil
-			}
-
-			return nil, fmt.Errorf("password error")
-		},
+		NoClientAuth:      false, // 不需要用户认证
+		PasswordCallback:  self.verifyPasswd,
+		PublicKeyCallback: self.verifyPublic,
 	}
 
 	// 加载证书
@@ -71,6 +67,28 @@ func (self *SimpleSshd) Serve(conn net.Conn) {
 	go self.serveRequest(request)
 
 	sc.Wait()
+}
+
+// 验证密码
+func (self *SimpleSshd) verifyPasswd(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+	if 0 == bytes.Compare(password, []byte(self.config.Passwd)) {
+		return &ssh.Permissions{}, nil
+	}
+
+	return nil, fmt.Errorf("password error")
+}
+
+// 验证公钥
+func (self *SimpleSshd) verifyPublic(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	allKey := self.config.allKey
+	for i := 0; i < len(allKey); i++ {
+		sKey := allKey[i]
+		if 0 == bytes.Compare(sKey.Marshal(), key.Marshal()) {
+			return &ssh.Permissions{}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("password error")
 }
 
 // 一个新的通道
@@ -170,7 +188,7 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 		return
 	}
 
-	log.Println("start pty success: ", self.getEnv())
+	log.Println("start pty success")
 	// 回复客户端
 	req.Reply(true, nil)
 
