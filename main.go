@@ -15,8 +15,9 @@ import (
 func main() {
 	config := &serve.Config{}
 
-	flag.IntVar(&config.Port, "port", 8022, "listen tcp port")
+	flag.IntVar(&config.Port, "port", 8022, "监听的端口")
 	flag.StringVar(&config.Home, "home", "", "设置当前的主工程目录")
+	flag.StringVar(&config.Passwd, "passwd", "", "登录密码")
 	flag.Parse()
 
 	// 判断是否在msys下运行
@@ -25,6 +26,11 @@ func main() {
 			msysShell(config)
 			return
 		}
+	}
+
+	// 生成随机密码
+	if "" == config.Passwd {
+		config.Passwd = serve.RandomPassword()
 	}
 
 	// 打印信息
@@ -48,6 +54,9 @@ func msysShell(config *serve.Config) {
 	// 添加参数
 	exe += fmt.Sprintf(" --port %d", config.Port)
 	exe += fmt.Sprintf(" --home \"%s\"", pwd)
+	if "" != config.Passwd {
+		exe += fmt.Sprintf(" --passwd %s", config.Passwd)
+	}
 
 	log.Println("start exe: ", exe)
 	// 启动子进程

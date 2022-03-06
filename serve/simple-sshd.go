@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"bytes"
 	"efficient-sshd/sshex"
 	"fmt"
 	"github.com/runletapp/go-console"
@@ -10,6 +11,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
@@ -37,7 +39,14 @@ func (self *SimpleSshd) Serve(conn net.Conn) {
 
 	// 创建配置文件
 	serverConfig := &ssh.ServerConfig{
-		NoClientAuth: true, // 不需要用户认证
+		NoClientAuth: false, // 不需要用户认证
+		PasswordCallback: func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+			if 0 == bytes.Compare(password, []byte(self.config.Passwd)) {
+				return &ssh.Permissions{}, nil
+			}
+
+			return nil, fmt.Errorf("password error")
+		},
 	}
 
 	// 加载证书
@@ -145,19 +154,23 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 	// 设置环境变量
 	pty.SetENV(self.getEnv())
 
+	bash := []string{}
 	// 启动终端
 	if runtime.GOOS == "windows" {
-		err = pty.Start([]string{"C:\\msys64\\usr\\bin\\bash.exe", "--login"})
+		bash = append(bash, "C:\\msys64\\usr\\bin\\bash.exe")
 	} else {
-		err = pty.Start([]string{"/bin/bash", "--login"})
+		bash = append(bash, "/bin/bash")
 	}
 
+	// 附加启动参数
+	bash = append(bash, self.getRcFile()...)
+	err = pty.Start(bash)
 	if nil != err {
 		log.Println("start pty error: ", err)
 		return
 	}
 
-	log.Println("start pty success")
+	log.Println("start pty success: ", self.getEnv())
 	// 回复客户端
 	req.Reply(true, nil)
 
@@ -260,10 +273,15 @@ func (self *SimpleSshd) requestExec(ch ssh.Channel, req *ssh.Request) {
 }
 
 func (self *SimpleSshd) getEnv() []string {
-	env := os.Environ()
+	env := make([]string, 0)
+
+	// 设置主目录
 	env = append(env, self.getEnvHome())
+	// 设置PS1
 	env = append(env, self.getEnvPs1())
+	// 附加其它变量
 	env = append(env, self.env...)
+
 	return env
 }
 
@@ -290,6 +308,24 @@ func (self *SimpleSshd) getEnvPs1() string {
 	//36      46      青蓝色
 	//37      47      白色
 	return "PS1=\\033[32m\\h:\\W \\u > \\033[0m"
+}
+
+// 获取启动脚本
+func (self *SimpleSshd) getRcFile() []string {
+	dir, _ := os.Getwd()
+	// 使用指定的主目录
+	if "" != self.config.Home {
+		dir = self.config.Home
+	}
+
+	rcFile := filepath.Join(dir, ".bash_profile")
+	// 获取文件状态
+	stat, err := os.Stat(rcFile)
+	if nil != err || stat.IsDir() {
+		return nil
+	}
+
+	return []string{"--rcfile", rcFile}
 }
 
 func (self *SimpleSshd) serveRequest(request <-chan *ssh.Request) {
