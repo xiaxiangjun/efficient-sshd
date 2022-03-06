@@ -52,6 +52,10 @@ func msysShell(config *serve.Config) {
 	// 构建启动新进程
 	exe, _ := filepath.Abs(os.Args[0])
 	exe = strings.ReplaceAll(exe, "\\", "/")
+	if false == strings.HasSuffix(strings.ToLower(exe), ".exe") {
+		exe += ".exe"
+	}
+
 	// 添加参数
 	exe += fmt.Sprintf(" --port %d", config.Port)
 	exe += fmt.Sprintf(" --home \"%s\"", pwd)
