@@ -353,7 +353,7 @@ func (self *SimpleSshd) getEnvPs1() string {
 	//35      45      紫色
 	//36      46      青蓝色
 	//37      47      白色
-	return "PS1=\\033[32m\\h:\\W \\u > \\033[0m"
+	return "PS1=\\[\\033[32m\\]\\h:\\W \\u > \\[\\033[0m\\]"
 }
 
 // 获取启动脚本
