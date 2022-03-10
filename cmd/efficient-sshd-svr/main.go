@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"efficient-sshd/serve"
 	"flag"
 	"fmt"
 	"github.com/kardianos/service"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,7 +15,6 @@ import (
 
 type EfficientSshdSvr struct {
 	Config *serve.Config
-	cmd    *exec.Cmd
 }
 
 func (self *EfficientSshdSvr) Start(s service.Service) error {
@@ -40,17 +41,33 @@ func (self *EfficientSshdSvr) Start(s service.Service) error {
 
 	log.Println("start exe: ", exe)
 	// 启动子进程
-	self.cmd = exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
-	self.cmd.Env = os.Environ()
+	cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+	cmd.Env = os.Environ()
 	// 启动子进程
-	return self.cmd.Start()
+	return cmd.Start()
 }
 
 func (self *EfficientSshdSvr) Stop(s service.Service) error {
-	return self.cmd.Process.Kill()
+	c, err := net.Dial("tcp", "127.0.0.1:24")
+	if nil != err {
+		return err
+	}
+
+	c.Write([]byte("exit\r\n\r\n"))
+	return nil
+}
+
+func initLogger() {
+	// 初始化日志
+	exe, _ := exec.LookPath(os.Args[0])
+	fp, _ := os.OpenFile(exe+".log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	log.SetOutput(fp)
 }
 
 func main() {
+	// 初始化日志
+	initLogger()
+
 	// 判断参数个数是否正确
 	if len(os.Args) < 2 {
 		fmt.Println("use create/run/delete")
@@ -114,6 +131,38 @@ func main() {
 }
 
 func ShellMain(config *serve.Config) {
+	// 监听退出事件
+	go waitForClose()
+
 	// 启动服务
 	serve.ServerMain(config)
+}
+
+func waitForClose() {
+	l, err := net.Listen("tcp", "127.0.0.1:24")
+	if nil != err {
+		log.Panic(err)
+	}
+
+	for {
+		c, err := l.Accept()
+		if nil != err {
+			log.Panic(err)
+		}
+
+		go waitOneForClose(c)
+	}
+}
+
+func waitOneForClose(c net.Conn) {
+	defer c.Close()
+
+	line, _, err := bufio.NewReader(c).ReadLine()
+	if nil != err {
+		return
+	}
+
+	if strings.HasPrefix(string(line), "exit") {
+		os.Exit(-1)
+	}
 }
