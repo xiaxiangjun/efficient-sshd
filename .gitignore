@@ -16,5 +16,6 @@
 # vendor/
 
 .idea
-efficient-sshd
+**/efficient-sshd
+**/efficient-sshd-svr
 **/vendor/**

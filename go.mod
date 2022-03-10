@@ -3,6 +3,7 @@ module efficient-sshd
 go 1.17
 
 require (
+	github.com/kardianos/service v1.2.1
 	github.com/runletapp/go-console v0.0.0-20211204140000-27323a28410a
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 )
