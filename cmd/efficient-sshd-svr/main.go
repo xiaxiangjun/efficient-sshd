@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"efficient-sshd/serve"
+	"efficient-sshd/system"
 	"flag"
 	"fmt"
 	"github.com/kardianos/service"
@@ -40,11 +41,12 @@ func (self *EfficientSshdSvr) Start(s service.Service) error {
 	}
 
 	log.Println("start exe: ", exe)
+
 	// 启动子进程
-	cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
-	cmd.Env = os.Environ()
-	// 启动子进程
-	return cmd.Start()
+	return system.LaunchProcessWithUser("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+	//cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+	//cmd.Env = os.Environ()
+	//return cmd.Start()
 }
 
 func (self *EfficientSshdSvr) Stop(s service.Service) error {
