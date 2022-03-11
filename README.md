@@ -22,8 +22,9 @@ ssh-keygen -N "" -f ssh.rsa -t rsa
 
 # 本工程引用第三方库说明
 
-| 第三方包                        | 用途         | 备注 |
-| ------------------------------- | ------------ | ---- |
-| golang.org/x/crypto/ssh         | 用于ssh协议  |      |
-| github.com/runletapp/go-console | 用于终端操作 |      |
+| 第三方包                        | 用途                    | 备注 |
+| ------------------------------- | ----------------------- | ---- |
+| golang.org/x/crypto/ssh         | 用于ssh协议             |      |
+| github.com/runletapp/go-console | 用于终端操作            |      |
+| github.com/kardianos/service    | 用于windows下的服务安装 |      |
 

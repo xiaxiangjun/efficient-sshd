@@ -154,6 +154,7 @@ func (self *SimpleSshd) serveSession(ch ssh.Channel, request <-chan *ssh.Request
 // 启动shell
 func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 	defer ch.Close()
+	defer log.Println("stop shell")
 
 	// 创建一个新的console
 	pty, err := console.New(self.ptyWidth, self.ptyHeight)
@@ -200,7 +201,34 @@ func (self *SimpleSshd) startShell(ch ssh.Channel, req *ssh.Request) {
 		self.console = nil
 	}()
 
-	io.Copy(ch, pty)
+	// 由于应用程序控制台打印过快，
+	// 与ssh网络存在速度差异，
+	// 因此在这里加个缓冲以保证控制台性能
+	cache := make(chan []byte, 819200)
+	defer close(cache)
+
+	// 开启协程发送数据
+	go func() {
+		for {
+			data, ok := <-cache
+			if false == ok {
+				break
+			}
+
+			ch.Write(data)
+		}
+	}()
+
+	// 接收终端数据
+	for {
+		buf := make([]byte, 2048)
+		n, err := pty.Read(buf)
+		if nil != err || 0 == n {
+			break
+		}
+
+		cache <- buf[:n]
+	}
 }
 
 // 配置窗口改变
@@ -325,7 +353,7 @@ func (self *SimpleSshd) getEnvPs1() string {
 	//35      45      紫色
 	//36      46      青蓝色
 	//37      47      白色
-	return "PS1=\\033[32m\\h:\\W \\u > \\033[0m"
+	return "PS1=\\[\\033[32m\\]\\h:\\W \\u > \\[\\033[0m\\]"
 }
 
 // 获取启动脚本
