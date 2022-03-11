@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"efficient-sshd/serve"
+	"efficient-sshd/system"
 	"flag"
 	"fmt"
 	"github.com/kardianos/service"
@@ -40,11 +41,12 @@ func (self *EfficientSshdSvr) Start(s service.Service) error {
 	}
 
 	log.Println("start exe: ", exe)
+
 	// 启动子进程
-	cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
-	cmd.Env = os.Environ()
-	// 启动子进程
-	return cmd.Start()
+	return system.LaunchProcessWithUser("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+	//cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+	//cmd.Env = os.Environ()
+	//return cmd.Start()
 }
 
 func (self *EfficientSshdSvr) Stop(s service.Service) error {
@@ -60,14 +62,11 @@ func (self *EfficientSshdSvr) Stop(s service.Service) error {
 func initLogger() {
 	// 初始化日志
 	exe, _ := exec.LookPath(os.Args[0])
-	fp, _ := os.OpenFile(exe+".log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	fp, _ := os.OpenFile(exe+".log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	log.SetOutput(fp)
 }
 
 func main() {
-	// 初始化日志
-	initLogger()
-
 	// 判断参数个数是否正确
 	if len(os.Args) < 2 {
 		fmt.Println("use create/run/delete")
@@ -119,6 +118,9 @@ func main() {
 
 		log.Println("删除成功")
 	case "run":
+		// 初始化日志
+		initLogger()
+		// 启动服务
 		err := svr.Run()
 		if nil != err {
 			log.Panic(err)
