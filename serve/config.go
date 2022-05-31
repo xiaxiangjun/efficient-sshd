@@ -18,6 +18,7 @@ type Config struct {
 	Port   int    // 监听的端口
 	Home   string // 主目录，默认为当前目录
 	Passwd string // 密码，默认为随机密码
+	UseUI  bool   // 使用UI
 	allKey []ssh.PublicKey
 }
 

@@ -43,10 +43,13 @@ func (self *EfficientSshdSvr) Start(s service.Service) error {
 	log.Println("start exe: ", exe)
 
 	// 启动子进程
-	return system.LaunchProcessWithUser("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
-	//cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
-	//cmd.Env = os.Environ()
-	//return cmd.Start()
+	if self.Config.UseUI {
+		return system.LaunchProcessWithUser("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+	} else {
+		cmd := exec.Command("C:\\msys64\\msys2_shell.cmd", "-msys", "-c", exe)
+		cmd.Env = os.Environ()
+		return cmd.Start()
+	}
 }
 
 func (self *EfficientSshdSvr) Stop(s service.Service) error {
@@ -79,6 +82,7 @@ func main() {
 	flag.IntVar(&config.Port, "port", 8022, "监听的端口")
 	flag.StringVar(&config.Home, "home", "", "设置当前的主工程目录")
 	flag.StringVar(&config.Passwd, "passwd", "", "登录密码")
+	flag.BoolVar(&config.UseUI, "ui", false, "使用UI启动")
 	flag.CommandLine.Parse(os.Args[2:])
 
 	// 生成随机密码
